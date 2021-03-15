@@ -46,30 +46,32 @@ namespace rxs
 			bool log_used;
 			const char *path;
 		
-			friend void init(const char *name);			
+			friend void init(const char *name);
 			friend void save(std::string text);
 			
 		};
 
-		
 		LOG rec;	
 		
-
 		void init(const char *name)
 		{
-
 			rec.path = name;
 			rec.log.open(name, std::ios::out);
-			if (!rec.log.good())throw std::runtime_error("file couldn't be opened");
+			if (!rec.log.good())throw std::runtime_error("file openning error");
 
 			rec.log << "Log file:	" << name;
 			rec.log << "	Main thread: " << std::this_thread::get_id();
 			rec.log << "	Configuration: " << CONF;
 			rec.log << "	Platform: " << PLATFORM;
 			rec.log << "	Date: " << __DATE__ << " " << __TIME__ << std::endl;
+		
 			rec.log.close();
 			rec.log_used = false;
 			
+		}
+		void init_message(std::string message)
+		{
+
 		}
 		void save(std::string text)
 		{

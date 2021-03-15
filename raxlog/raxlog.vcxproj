@@ -229,6 +229,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="consumer.h" />
     <ClInclude Include="log.h" />
   </ItemGroup>
   <ItemGroup>
