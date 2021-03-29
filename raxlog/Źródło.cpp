@@ -6,18 +6,10 @@ using namespace rxs;
 
 int main()
 {
-	try
-	{
-		log::init("log000.txt");
-	}
-	catch (std::runtime_error & e)
-	{
-		std::cerr << e.what();
-		return -1;
-	}
-	log::write("test", log::INFO);
-	log::write(421, log::INFO);
-	log::write(321, log::INFO);
+	if(log::init() == -1) return -1;
 	
+	Log("test", log::ERROR);
+
+	log::deinit();
 	return 0;
 }

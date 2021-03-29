@@ -1,0 +1,2 @@
+Log file:	./logs/log0.txt	Main thread: 2400	Configuration: Debug	Platform: x86	Date: Mar 29 2021 21:13:13
+[19:13:18]	 line: 11	Error	: test

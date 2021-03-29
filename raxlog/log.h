@@ -1,140 +1,196 @@
 #pragma once
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <thread>
-#include <time.h>
-#include <queue>
-#include <stdexcept>
+#include "log/configuration.h"
 
-#ifdef _DEBUG
-	#define CONF "Debug"
-#else 
-	#define CONF "Release"
-#endif
+// Makros
+#define Log(message,message_type) rxs::log::write(message,message_type,__LINE__)
+#define L_INFO(message) rxs::log::write(message,rxs::log::INFO,__LINE__)
+#define L_WARN(message) rxs::log::write(message,rxs::log::WARN,__LINE__)
+#define L_ERROR(message) rxs::log::write(message,rxs::log::ERROR,__LINE__)
 
-#ifdef _M_IX86
-#define PLATFORM "x86"
-#endif
-
-#ifdef _M_AMD64
-#define PLATFORM "x64"
-#endif
-
-#ifdef _M_ARM
-#define PLATFORM "ARM"
-#endif
-
-#ifdef _M_ARM64
-#define PLATFORM "ARM64"
-#endif
-
+// Declarations
 namespace rxs
 {
 	namespace log
 	{
-		enum MODE
-		{
-			INFO = 0,
-			WARRING = 1,
-			ERROR = 2
-		};
+		typedef std::string MESSAGE_FLAG;
+		MESSAGE_FLAG INF = "Info";
+		MESSAGE_FLAG WARN = "Warning";
+		MESSAGE_FLAG ERROR = "Error";
+
+		int init(); // initialize log file and run listener
+		int deinit(); // 
+		inline void write(double message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
+		inline void write(std::string message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
+		void run_listener() throw(std::runtime_error);
+		void add_record(std::string message, MESSAGE_FLAG message_type, int line, std::thread::id thread_id);
 
 		class LOG
 		{
-			std::fstream log;
-			bool log_used;
+			std::fstream logfile;
 			const char *path;
-		
-			friend void init(const char *name);
-			friend void save(std::string text);
+
+			std::queue <std::string> records;
+			std::thread *recorder_handle;
+
+			unsigned long sampling;
+			std::thread *consumer_handle;
+			bool should_close;
+			int consumer_state;
+
+			std::string get_time() noexcept;
 			
+			friend void run_listener() throw(std::runtime_error);
+			friend void add_record(std::string message, MESSAGE_FLAG message_type, int line, std::thread::id thread_id);			
+			friend inline void write(std::string message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
+			friend int deinit();
+
+		public:	
+			int init(const char *name) throw(std::runtime_error);
+			~LOG()
+			{
+				if (consumer_state == 1) deinit();	
+			}
 		};
 
-		LOG rec;	
-		
-		void init(const char *name)
-		{
-			rec.path = name;
-			rec.log.open(name, std::ios::out);
-			if (!rec.log.good())throw std::runtime_error("file openning error");
+		LOG Log;
 
-			rec.log << "Log file:	" << name;
-			rec.log << "	Main thread: " << std::this_thread::get_id();
-			rec.log << "	Configuration: " << CONF;
-			rec.log << "	Platform: " << PLATFORM;
-			rec.log << "	Date: " << __DATE__ << " " << __TIME__ << std::endl;
+		int rxs::log::LOG::init(const char *name) throw(std::runtime_error)
+		{
+			path = name;
+			logfile.open(name, std::ios::out);
+			if (!logfile.good())
+			{
+				consumer_state = -1;
+				throw std::runtime_error("file openning error has ocured");
+			}
+
+			logfile << "Log file:	" << name;
+			logfile << "	Main thread: " << std::this_thread::get_id();
+			logfile << "	Configuration: " << CONF;
+			logfile << "	Platform: " << PLATFORM;
+			logfile << "	Date: " << __DATE__ << " " << __TIME__ << std::endl;
+			logfile.close();
+
+			std::thread consumer(&run_listener);
+			consumer.detach();
+			consumer_handle = &consumer;
+			return 0;
+		}
+
+		int init()
+		{
+			std::fstream conf;
+			const char *conf_path = "./logs/config.txt";
+			conf.open("./logs/config.txt", std::ios::in);
+			if (!conf.good())
+			{
+				_mkdir("logs");
+				conf.open(conf_path, std::ios::out);
+				if (!conf.good()) return -1;
+				conf << 0;
+
+			}
+
+			int nr;
+			conf >> nr;
+			conf.close();
+
+			std::string name = "./logs/log" + std::to_string(nr) + ".txt";
+
+
+			conf.open("./logs/config.txt", std::ios::out);
+			conf << (nr + 1);
+
+			conf.close();
+			const char * log_path = name.c_str();
+			Log.init(log_path);
+			return 0;
+		}
+
+		void run_listener() throw(std::runtime_error)
+		{
+			std::chrono::milliseconds(100);
+			Log.logfile.open(Log.path, std::ios::app);
+			if (!Log.logfile.good()) throw std::runtime_error("file openning error has ocured");
+
+			Log.should_close = false;
+			
+			while (!Log.should_close)
+			{
+				while(!Log.records.empty())
+				{
+						std::cout << "test";
+						std::cout << Log.records.front() <<std::endl;
+						Log.logfile << Log.records.front() << std::endl;
+						Log.records.pop();				
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(Log.sampling));
+			} 
+			Log.logfile.close();
+		}
 		
-			rec.log.close();
-			rec.log_used = false;
+		
+
+		
+		
+		std::string rxs::log::LOG::get_time() noexcept
+		{
+			char bufor[9];
+			time_t date;
+			tm timeTM;
+
+			time(&date);
+			gmtime_s(&timeTM, &date);
+			strftime(bufor, sizeof(bufor), "%H:%M:%S", &timeTM);
+			return bufor;
+		}
+
+		void add_record(std::string message, log::MESSAGE_FLAG message_type, int line, std::thread::id thread_id)
+		{
+					
+			std::string out_message = "[" + Log.get_time() + "]	" +
+	#ifdef _DEBUG
+				" line: " + std::to_string(line) +
+	#endif
+				 "	" + message_type + "	: " + message;
+			
+			Log.records.push(out_message);	
+		}
+
+		inline void write(std::string message, log::MESSAGE_FLAG message_type,unsigned int line = 0,std::thread::id thread_id = std::this_thread::get_id())
+		{
+			
+			std::thread queue_thread(add_record, message, message_type, line, thread_id);
+			Log.recorder_handle = &queue_thread;
+			queue_thread.detach();
 			
 		}
-		void init_message(std::string message)
+		inline void write(double message, MESSAGE_FLAG message_type,unsigned int line = 0, std::thread::id thread_id = std::this_thread::get_id())
 		{
-
+			write(std::to_string(message), message_type, line, thread_id );
 		}
-		void save(std::string text)
+		int deinit()
 		{
-			int n = 0;
-			while (rec.log_used)
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			Log.should_close = true;
+			if (Log.consumer_state == 1)
 			{
-				n++;
+				while (Log.consumer_state != 1)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(Log.sampling));
+				}
 			}
-			rec.log.open(rec.path, std::ios::app);
-			if (!rec.log.good())throw std::runtime_error("file couldn't be opened");
-			rec.log << text << std::endl;
-			rec.log.close();
-		}
-		
-		void write(std::string message, MODE m, std::thread::id thread_id = std::this_thread::get_id(), int line = __LINE__)
-		{
-			char bufor[9];
-			time_t date;
-			std::string s_mode[3] = { "info","warrning","error" };
-
-			time(&date);
-			tm timeTM;
-			gmtime_s(&timeTM,&date);
-
-			strftime(bufor, sizeof(bufor), "%H:%M:%S", &timeTM);
-
-			std::string m_buff = message;
-			std::string t_buff = bufor;
-			std::string o_message = "[" + t_buff + "]	" + " line: " + std::to_string(line) + "	" + s_mode[m] + "	: " + m_buff;
-					
-			try
+			else if (Log.consumer_state == -1)
 			{
-				save(o_message);
-			}
-			catch (std::runtime_error&)
-			{
-				abort();
-			}
-		}
-		void write(double message, MODE m, std::thread::id thread_id = std::this_thread::get_id(), int line = __LINE__)
-		{
-			char bufor[9];
-			time_t date;
-			std::string s_mode[3] = { "info","warrning","error" };
-
-			time(&date);
-			tm timeTM;
-			gmtime_s(&timeTM, &date);
-
-			strftime(bufor, sizeof(bufor), "%H:%M:%S", &timeTM);
-
-			std::string m_buff = std::to_string(message);
-			std::string t_buff = bufor;
-			std::string o_message = "[" + t_buff + "]	" + " line: " + std::to_string(line) + "	" + s_mode[m] + "	: " + m_buff;
-
-			try
-			{
-				save(o_message);
-			}
-			catch (std::runtime_error &e)
-			{
-				std::cerr << e.what();
-			}
+				while (!Log.records.empty())
+				{
+					std::cout << Log.records.front() << std::endl;
+					Log.records.pop();
+				}
+				return -1;
+			}			
+			return 0;
 		}
 	}
 }
+

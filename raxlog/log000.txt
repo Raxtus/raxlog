@@ -1,4 +1,0 @@
-Log file:	log000.txt	Main thread: 27540	Configuration: Debug	Platform: x86	Date: Mar 14 2021 20:12:48
-[19:12:51]	 line: 89	info	: test
-[19:12:51]	 line: 114	info	: 421.000000
-[19:12:51]	 line: 114	info	: 321.000000
