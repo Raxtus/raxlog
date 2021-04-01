@@ -6,6 +6,7 @@
 #define L_INFO(message) rxs::log::write(message,rxs::log::INFO,__LINE__)
 #define L_WARN(message) rxs::log::write(message,rxs::log::WARN,__LINE__)
 #define L_ERROR(message) rxs::log::write(message,rxs::log::ERROR,__LINE__)
+#define LOGINIT() rxs::log::init()
 
 // Declarations
 namespace rxs
@@ -17,8 +18,8 @@ namespace rxs
 		MESSAGE_FLAG WARN = "Warning";
 		MESSAGE_FLAG ERROR = "Error";
 
-		int init(); // initialize log file and run listener
-		int deinit(); // 
+		int init() throw(std::runtime_error);
+		int deinit(); 
 		inline void write(double message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
 		inline void write(std::string message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
 		void run_listener() throw(std::runtime_error);
@@ -77,31 +78,26 @@ namespace rxs
 			return 0;
 		}
 
-		int init()
+		int init() throw(std::runtime_error)
 		{
 			std::fstream conf;
 			const char *conf_path = "./logs/config.txt";
-			conf.open("./logs/config.txt", std::ios::in);
-			if (!conf.good())
+			if(_mkdir("logs") != EEXIST)
 			{
-				_mkdir("logs");
 				conf.open(conf_path, std::ios::out);
-				if (!conf.good()) return -1;
+				if (!conf.good()) throw std::runtime_error("./logs/config.txt file couldn't be created");
 				conf << 0;
-
+				conf.close();
 			}
 
+			conf.open("./logs/config.txt", std::ios::in | std::ios::out);
+			if (!conf.good()) throw std::runtime_error("./logs/config.txt file couldn't be opened");		
 			int nr;
 			conf >> nr;
-			conf.close();
-
-			std::string name = "./logs/log" + std::to_string(nr) + ".txt";
-
-
-			conf.open("./logs/config.txt", std::ios::out);
 			conf << (nr + 1);
-
 			conf.close();
+
+			std::string name = "./logs/log" + std::to_string(nr) + ".txt";	
 			const char * log_path = name.c_str();
 			Log.init(log_path);
 			return 0;
@@ -119,8 +115,6 @@ namespace rxs
 			{
 				while(!Log.records.empty())
 				{
-						std::cout << "test";
-						std::cout << Log.records.front() <<std::endl;
 						Log.logfile << Log.records.front() << std::endl;
 						Log.records.pop();				
 				}
@@ -128,11 +122,7 @@ namespace rxs
 			} 
 			Log.logfile.close();
 		}
-		
-		
 
-		
-		
 		std::string rxs::log::LOG::get_time() noexcept
 		{
 			char bufor[9];
@@ -158,12 +148,10 @@ namespace rxs
 		}
 
 		inline void write(std::string message, log::MESSAGE_FLAG message_type,unsigned int line = 0,std::thread::id thread_id = std::this_thread::get_id())
-		{
-			
+		{	
 			std::thread queue_thread(add_record, message, message_type, line, thread_id);
 			Log.recorder_handle = &queue_thread;
-			queue_thread.detach();
-			
+			queue_thread.detach();			
 		}
 		inline void write(double message, MESSAGE_FLAG message_type,unsigned int line = 0, std::thread::id thread_id = std::this_thread::get_id())
 		{
@@ -193,4 +181,3 @@ namespace rxs
 		}
 	}
 }
-

@@ -9,6 +9,7 @@ int main()
 	if(log::init() == -1) return -1;
 	
 	Log("test", log::ERROR);
+	Log("t", log::INF);
 
 	log::deinit();
 	return 0;
