@@ -14,15 +14,15 @@ namespace rxs
 	namespace log
 	{
 		typedef std::string MESSAGE_FLAG;
-		MESSAGE_FLAG INF = "Info";
+		MESSAGE_FLAG INFO = "Info";
 		MESSAGE_FLAG WARN = "Warning";
 		MESSAGE_FLAG ERROR = "Error";
 
-		int init() throw(std::runtime_error);
+		int init();
 		int deinit(); 
 		inline void write(double message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
 		inline void write(std::string message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
-		void run_listener() throw(std::runtime_error);
+		void run_consumer();
 		void add_record(std::string message, MESSAGE_FLAG message_type, int line, std::thread::id thread_id);
 
 		class LOG
@@ -38,15 +38,15 @@ namespace rxs
 			bool should_close;
 			int consumer_state;
 
-			std::string get_time() noexcept;
+			std::string get_time();
 			
-			friend void run_listener() throw(std::runtime_error);
+			friend void run_consumer();
 			friend void add_record(std::string message, MESSAGE_FLAG message_type, int line, std::thread::id thread_id);			
 			friend inline void write(std::string message, MESSAGE_FLAG message_type, unsigned int line, std::thread::id thread_id);
 			friend int deinit();
 
 		public:	
-			int init(const char *name) throw(std::runtime_error);
+			int init(const char *name);
 			~LOG()
 			{
 				if (consumer_state == 1) deinit();	
@@ -55,7 +55,7 @@ namespace rxs
 
 		LOG Log;
 
-		int rxs::log::LOG::init(const char *name) throw(std::runtime_error)
+		int rxs::log::LOG::init(const char *name) 
 		{
 			path = name;
 			logfile.open(name, std::ios::out);
@@ -72,28 +72,35 @@ namespace rxs
 			logfile << "	Date: " << __DATE__ << " " << __TIME__ << std::endl;
 			logfile.close();
 
-			std::thread consumer(&run_listener);
+			std::thread consumer(&run_consumer);
 			consumer.detach();
 			consumer_handle = &consumer;
 			return 0;
 		}
 
-		int init() throw(std::runtime_error)
+		int init() 
 		{
 			std::fstream conf;
 			const char *conf_path = "./logs/config.txt";
-			if(_mkdir("logs") != EEXIST)
+		#if defined(_WIN32)
+			_mkdir("logs");
+		#elif defined(__linux__)
+			mkdir("logs"), 0777);
+		#endif
+			conf.open(conf_path, std::ios::in);
+			if(!conf.good())
 			{
 				conf.open(conf_path, std::ios::out);
 				if (!conf.good()) throw std::runtime_error("./logs/config.txt file couldn't be created");
 				conf << 0;
 				conf.close();
+				conf.open(conf_path, std::ios::in);
 			}
-
-			conf.open("./logs/config.txt", std::ios::in | std::ios::out);
-			if (!conf.good()) throw std::runtime_error("./logs/config.txt file couldn't be opened");		
+			if (!conf.good()) throw std::runtime_error("./logs/config.txt file couldn't be opened");
 			int nr;
 			conf >> nr;
+			conf.close();
+			conf.open("./logs/config.txt", std::ios::out);
 			conf << (nr + 1);
 			conf.close();
 
@@ -103,7 +110,7 @@ namespace rxs
 			return 0;
 		}
 
-		void run_listener() throw(std::runtime_error)
+		void run_consumer()
 		{
 			std::chrono::milliseconds(100);
 			Log.logfile.open(Log.path, std::ios::app);
@@ -123,7 +130,7 @@ namespace rxs
 			Log.logfile.close();
 		}
 
-		std::string rxs::log::LOG::get_time() noexcept
+		std::string rxs::log::LOG::get_time()
 		{
 			char bufor[9];
 			time_t date;

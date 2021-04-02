@@ -233,7 +233,7 @@
     <ClInclude Include="log\configuration.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Źródło.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

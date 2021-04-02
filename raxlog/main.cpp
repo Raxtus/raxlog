@@ -6,11 +6,11 @@ using namespace rxs;
 
 int main()
 {
-	if(log::init() == -1) return -1;
+	log::init();
 	
 	Log("test", log::ERROR);
-	Log("t", log::INF);
-
+	Log("t", log::INFO);
+	L_INFO("teste");
 	log::deinit();
 	return 0;
 }
