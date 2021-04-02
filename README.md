@@ -1,5 +1,6 @@
 # raxlog
 It's a simple code to loging
+
 example of use:
 
 int main()
