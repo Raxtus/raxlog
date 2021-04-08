@@ -18,7 +18,7 @@
     <ClInclude Include="log.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
-    <ClInclude Include="log\configuration.h">
+    <ClInclude Include="configuration.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
   </ItemGroup>

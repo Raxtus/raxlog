@@ -1,5 +1,5 @@
 #pragma once
-#include "log/configuration.h"
+#include "configuration.h"
 
 // Makros
 #define Log(message,message_type) rxs::log::write(message,message_type,__LINE__)

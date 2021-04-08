@@ -229,8 +229,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="configuration.h" />
     <ClInclude Include="log.h" />
-    <ClInclude Include="log\configuration.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
